@@ -122,14 +122,15 @@ class DiffFinder(QtWidgets.QApplication):
 		self.act_open.setText("&Open...")
 		self.act_open.setToolTip("Open an IMF package")
 		#self.act_open.setIcon(QtGui.QIcon("../res/icn_open.png"))
-		self.act_open.triggered.connect(lambda: self.openImf())
+		self.act_open.triggered.connect(self.openImf)
 		
 		self.act_exp_edl.setText("Export &EDL...")
 		self.act_exp_edl.setToolTip("Export the visible items as an EDL")
-		self.act_exp_edl.triggered.connect(lambda: self.outputAsEdl())
+		self.act_exp_edl.triggered.connect(self.outputAsEdl)
 		#self.act_exp_edl.setIcon(QtGui.QIcon("../res/icn_exp_edl.png"))
 		
 		self.act_exp_txt.setText("Export &Text File...")
+		self.act_exp_txt.triggered.connect(self.outputAsTxt)
 		#self.act_exp_txt.setIcon(QtGui.QIcon("../res/icn_exp_txt.png"))
 		self.act_exp_txt.setToolTip("Export the visible items as a change list")
 
@@ -148,18 +149,12 @@ class DiffFinder(QtWidgets.QApplication):
 		spacer = QtWidgets.QWidget()
 		spacer.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding))
 
-		logo = QtWidgets.QLabel("<img src='../res/logo_soft.png' height='25' />")
-		
-		logo.setScaledContents(True)
-		
-
 		
 		self.wnd_main.tb_main.addAction(self.act_open)
 		self.wnd_main.tb_main.addSeparator()
 		self.wnd_main.tb_main.addAction(self.act_exp_edl)
 		self.wnd_main.tb_main.addAction(self.act_exp_txt)
 		self.wnd_main.tb_main.addWidget(spacer)
-		#self.wnd_main.tb_main.addWidget(logo)
 
 		self.sig_imf_chosen.connect(self.wnd_main.slot_imfChanged)
 		self.sig_imf_chosen.connect(self.wnd_main.centralWidget().slot_imfChanged)
@@ -179,7 +174,8 @@ class DiffFinder(QtWidgets.QApplication):
 		self.sig_imf_chosen.emit(self.active_imf)
 	
 	def outputAsEdl(self):
-		selected, _ = QtWidgets.QFileDialog.getSaveFileName(self.wnd_main, "Save EDL as...", "../examples/", filter="EDL (*.edl);;All Files (*)")
+		"""Output IMF CPL as an EDL"""
+		selected, _ = QtWidgets.QFileDialog.getSaveFileName(self.wnd_main, "Save EDL as...", str(pathlib.Path(self.active_imf.cpl.title).with_suffix(".edl")), filter="EDL (*.edl);;All Files (*)")
 		if not selected:
 			return
 		
@@ -206,8 +202,35 @@ class DiffFinder(QtWidgets.QApplication):
 						tc_start += clip.duration
 						idx_event += 1
 
-			QtWidgets.QMessageBox.information(self.wnd_main,"EDL Complete",f"The EDL has been output to:\n\n{path_output}")
+		# Should signal done with this
+		QtWidgets.QMessageBox.information(self.wnd_main,"EDL Complete",f"The EDL has been output to:\n\n{path_output}")
+		
+	def outputAsTxt(self):
+		"""Output a "changes-only" IMF CPL as a text document"""
+		selected, _ = QtWidgets.QFileDialog.getSaveFileName(self.wnd_main, "Save text file as...", str(pathlib.Path(self.active_imf.cpl.title).with_suffix(".txt")), filter="Plaintext File (*.txt);;All Files (*)")
+		if not selected:
+			return
+		
+		path_output = pathlib.Path(selected)
 
+		with path_output.open("w") as txt_output:
+			print(f"The following changes were found in {self.active_imf.cpl.title}", file=txt_output)
+
+			# TODO: Should probably add better iteration into imflib
+			for segment in self.active_imf.cpl.segments:
+				print("", file=txt_output)
+				for sequence in segment.sequences:
+					tc_start = self.active_imf.cpl.tc_start
+					for clip in sequence.resources:
+						asset = self.active_imf.pkl.getAsset(clip.file_id)
+						tc_stop = tc_start + clip.duration
+						if not asset:
+							tc_start = tc_stop
+							continue
+
+						print(f"{tc_start}\t{tc_stop}\t{asset.file_name}\t{'Video' if isinstance(clip, cpl.ImageResource) else 'Audio'}", file=txt_output)
+
+		QtWidgets.QMessageBox.information(self.wnd_main,"Text File Complete",f"The text file has been output to:\n\n{path_output}")
 	
 	def firstRun(self):
 		self.openImf()
