@@ -1,0 +1,4 @@
+-e git+https://github.com/mjiggidy/imfdiff.git@6b78b0d371cbe93b02954b7993af36598d34905c#egg=imflib
+-e git+https://github.com/mjiggidy/posttools/@a2e0ecf48d0798af98c15b10d09454bfb06ca51f#egg=posttools
+PySide6==6.2.2.1
+shiboken6==6.2.2.1
