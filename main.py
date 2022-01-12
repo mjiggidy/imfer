@@ -3,50 +3,23 @@ from imflib import imf, cpl
 from posttools import timecode
 import sys, pathlib
 
+from models.mod_cpl import CPLModel
+
 from imflib.cpl import AudioResource, ImageResource
 
-class DiffList(QtWidgets.QTreeWidget):
+class DiffList(QtWidgets.QTreeView):
 	"""List control showing the timecode list"""
 
 	def __init__(self):
 		super().__init__()
-		self.headers = ["Record In", "Record Out", "Source In", "Source Out", "Duration", "Rate", "Essence Name", "Essence ID", "Essence Type"]
-		self.setHeaderLabels(self.headers)
+
 		self.setSortingEnabled(True)
 		self.setIndentation(False)
 		self.setAlternatingRowColors(True)
 	
 	@QtCore.Slot()
 	def slot_imfChanged(self, imf:imf.Imf):
-		self.clear()
-		resources = list()
-		
-		# Here we go now
-		for segment in imf.cpl.segments:
-			for sequence in segment.sequences:
-				tc_start = imf.cpl.tc_start
-				for resource in sequence.resources:
-					if isinstance(resource, cpl.Resource):
-						tc_out = tc_start + resource.duration
-						asset = imf.pkl.getAsset(resource.file_id)
-						file_name = asset.file_name if asset else "External"
-						essence_type = "Video" if isinstance(resource, cpl.ImageResource) else "Audio"
-						self.addTopLevelItem(QtWidgets.QTreeWidgetItem([
-							str(tc_start),
-							str(tc_out),
-							str(resource.in_point),
-							str(resource.out_point),
-							str(resource.duration),
-							str(resource.edit_rate_formatted),
-							file_name,
-							resource.file_id,
-							essence_type
-						]))
-						tc_start = tc_out
-		
-		for x in range(self.columnCount()):
-			self.resizeColumnToContents(x)
-		
+		self.setModel(CPLModel(imf))
 		#self.sortByColumn(self.headers.index("Essence Type"), QtCore.Qt.SortOrder.DescendingOrder)
 		self.sortByColumn(self.headers.index("Record In"), QtCore.Qt.SortOrder.AscendingOrder)
 
