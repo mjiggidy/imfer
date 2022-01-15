@@ -13,15 +13,11 @@ class DiffList(QtWidgets.QTreeView):
 	def __init__(self):
 		super().__init__()
 
-		self.setSortingEnabled(True)
-		self.setIndentation(False)
 		self.setAlternatingRowColors(True)
 	
 	@QtCore.Slot()
 	def slot_imfChanged(self, imf:imf.Imf):
 		self.setModel(CPLModel(imf))
-		#self.sortByColumn(self.headers.index("Essence Type"), QtCore.Qt.SortOrder.DescendingOrder)
-		self.sortByColumn(self.headers.index("Record In"), QtCore.Qt.SortOrder.AscendingOrder)
 
 
 
