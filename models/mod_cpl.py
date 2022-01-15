@@ -102,11 +102,14 @@ class CPLModel(QtCore.QAbstractItemModel):
 		"""Returns the index of the item in the model specified by the given row, column and parent index."""
 
 		# TODO: Investigate
-	#	if not self.hasIndex(row, column, parent):
-	#		return QtCore.QModelIndex()
+		if not self.hasIndex(row, column, parent):
+			return QtCore.QModelIndex()
 
 		if not parent.isValid():
-			cpl_item = self._root
+			# TODO: This is probably not right but is working for now
+			cpl_item = self._root.getChild(row)
+			# Probably this
+			#cpl_item = self._root
 		else:
 			cpl_item = parent.internalPointer().getChild(row)
 		
@@ -118,15 +121,15 @@ class CPLModel(QtCore.QAbstractItemModel):
 	def parent(self, child_index:QtCore.QModelIndex) -> QtCore.QModelIndex:
 		"""Returns the parent of the model item with the given index. If the item has no parent, an invalid QModelIndex is returned."""
 
+		# Probably won't happen
 		if not child_index.isValid():
 			return QtCore.QModelIndex()
 		
 		parent_item = child_index.internalPointer().parent
 
-		print(f"{child_index.internalPointer()} as a parent of type {parent_item}")
-
 		# TODO: Think about it
 		if parent_item is None:
+			print(f"Returning invalid for {parent_item}")
 			return QtCore.QModelIndex()
 		
 		else:
