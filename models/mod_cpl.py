@@ -1,11 +1,11 @@
 # This is a minimal template for Pyside/PyQt QAbstractItemModel with typehints
 # based on documentation from https://doc.qt.io/qtforpython/PySide6/QtCore/QAbstractItemModel.html
 
-import dataclasses
 import typing
 from imflib import imf, cpl, pkl
 from PySide6 import QtCore, QtGui
 from dataclasses import dataclass
+from posttools import timecode
 
 class CPLItem():
 
@@ -28,9 +28,12 @@ class CPLItem():
 		"""Get the index of a given child"""
 		return self._children.index(child)
 	
-	def getData(self, column:int) -> typing.Any:
+	def getText(self, column:str) -> str:
 		"""Return the data for a given column"""
-		return self._item_data
+	
+	#@abc.abstractmethod
+	def getSort(self, column:str) -> int:
+		"""Return the sorting priority"""
 	
 	@property
 	def child_count(self) -> int:
@@ -55,11 +58,59 @@ class CPLItem():
 class SegmentItem(CPLItem):
 	"""A Segment Node Item"""
 
+	def getText(self, column:str) -> str:
+		if column == "uuid":
+			return self._item_data.id
+		elif column == "kind":
+			return "Segment"
+
 class SequenceItem(CPLItem):
 	"""A Sequence node item"""
+	def getText(self, column:str) -> str:
+		if column == "uuid":
+			return self._item_data.id
+		elif column == "kind":
+			if isinstance(self._item_data, cpl.MainImageSequence):
+				return "Image Sequence"
+			elif isinstance(self._item_data, cpl.MainAudioSequence):
+				return "Audio Sequence"
+			else:
+				return "Auxillary Sequence"
+			
 
 class ResourceItem(CPLItem):
 	"""A Resource node item"""
+	def getText(self, column:str) -> str:
+		if column == "uuid":
+			return self._item_data.id
+		elif column == "src_in":
+			return str(self._item_data.in_point)
+		elif column == "src_out":
+			return str(self._item_data.out_point)
+		elif column == "duration":
+			return str(self._item_data.duration)
+		elif column == "cpl_in":
+			# TODO: Very bad but good for now
+			tc = timecode.Timecode(0,self._parent._children[0]._item_data.edit_rate)
+			for x in self._parent._children[:self.row]:
+				tc += x._item_data.duration
+			return str(tc)
+		elif column == "cpl_out":
+			# TODO: Very bad but good for now
+			tc = timecode.Timecode(0,self._parent._children[0]._item_data.edit_rate)
+			for x in self._parent._children[:self.row]:
+				tc += x._item_data.duration
+			return str(tc+self._item_data.duration)
+		elif column == "file_id":
+			return self._item_data.file_asset.file_name
+		elif column == "kind":
+			if isinstance(self._parent._item_data, cpl.MainImageSequence):
+				return "Image"
+			elif isinstance(self._parent._item_data, cpl.MainAudioSequence):
+				return "Audio"
+			else:
+				return "Data"
+		
 
 
 
@@ -70,11 +121,16 @@ class CPLModel(QtCore.QAbstractItemModel):
 
 		super().__init__()
 
-		self.headers = [
-			"In Point",
-			"Out Point",
-			"File ID"
-		]
+		self.headers = {
+			"kind":"Kind",
+			"src_in":"Source In",
+			"src_out":"Source Out",
+			"duration": "Duration",
+			"cpl_in": "CPL In",
+			"cpl_out": "CPL Out",
+			"file_id":"File ID",
+			"uuid":"UUID"
+		}
 
 		self._root = CPLItem(None)
 		self._parseImf(imf)
@@ -129,7 +185,6 @@ class CPLModel(QtCore.QAbstractItemModel):
 
 		# TODO: Think about it
 		if parent_item is None:
-			print(f"Returning invalid for {parent_item}")
 			return QtCore.QModelIndex()
 		
 		else:
@@ -162,12 +217,12 @@ class CPLModel(QtCore.QAbstractItemModel):
 		item = index.internalPointer()
 		
 		if role == QtCore.Qt.DisplayRole:
-			return str(type(item.getData(0)))
+			return item.getText(list(self.headers.keys())[index.column()])
 		
 
 	def headerData(self, column:int, orientation:QtCore.Qt.Orientation, role:typing.Optional[int]=QtCore.Qt.DisplayRole) -> typing.Any:
 		"""Returns the data for the given role and section in the header with the specified orientation."""
 		
 		if role == QtCore.Qt.DisplayRole:
-			return self.headers[column]
+			return list(self.headers.values())[column]
 		
